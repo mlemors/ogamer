@@ -58,13 +58,7 @@ except ImportError as e:
     print("Make sure all files are in the correct folders!")
     sys.exit(1)
 
-class OGameBot:
-    def __init__(self):
-        self.driver = None
-        self.wait = None
-        self.setup_logging()
-        
-    class OGameFullBot:
+class OGameFullBot:
     """
     🚀 VOLLAUTOMATISCHER OGAME BOT
     
@@ -212,6 +206,33 @@ class OGameBot:
             
         except Exception as e:
             self.logger.error(f"❌ Browser connection failed: {e}")
+            return False
+
+    def navigate_to_ogame(self):
+        """Navigate automatically to OGame login page"""
+        try:
+            self.logger.info("🌐 Navigating to OGame...")
+            
+            # OGame lobby URL for German servers
+            ogame_url = "https://lobby.ogame.gameforge.com/de_DE/"
+            
+            self.driver.get(ogame_url)
+            self.logger.info(f"📍 Opened OGame lobby: {ogame_url}")
+            
+            # Wait a moment for page to load
+            time.sleep(3)
+            
+            # Check if we're on OGame page
+            current_url = self.driver.current_url
+            if 'ogame' in current_url.lower() or 'gameforge' in current_url.lower():
+                self.logger.info("✅ Successfully navigated to OGame!")
+                return True
+            else:
+                self.logger.warning(f"⚠️ Unexpected page: {current_url}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"❌ Navigation to OGame failed: {e}")
             return False
 
     def initialize_managers(self):
@@ -474,10 +495,11 @@ class OGameBot:
    🏛️  Colony ship deployment and management
    📊 Adaptive timing based on empire status
 
-⚠️  IMPORTANT:
-   🌐 Login to OGame manually after browser opens
-   📍 Navigate to your planet overview page
-   🤖 Bot will detect game and start automatically
+⚡ FULLY AUTOMATED:
+   🌐 Browser opens automatically
+   🎮 Navigates to OGame automatically
+   🔑 You just need to log in once
+   🤖 Bot takes over completely after login
 
 🎮 Expected Results:
    📈 3-5x faster resource growth
@@ -503,15 +525,20 @@ class OGameBot:
             if not self.connect_to_browser(port):
                 return False
                 
-            # Step 3: Initialize managers
+            # Step 3: Navigate to OGame automatically
+            if not self.navigate_to_ogame():
+                self.logger.warning("⚠️ Could not navigate to OGame automatically")
+                self.logger.info("📍 Please navigate to OGame manually")
+                
+            # Step 4: Initialize managers
             if not self.initialize_managers():
                 return False
                 
-            # Step 4: Wait for OGame login
+            # Step 5: Wait for OGame login
             if not self.wait_for_ogame_login():
                 return False
                 
-            # Step 5: Start main automation loop
+            # Step 6: Start main automation loop
             self.run_main_loop()
             
             return True
@@ -528,214 +555,11 @@ def main():
     success = bot.start()
     
     if not success:
-        print("
-❌ Bot failed to start properly!")
+        print("\n❌ Bot failed to start properly!")
         print("Check the logs in logs/ogame_bot.log for details.")
         sys.exit(1)
     else:
-        print("
-✅ Bot finished successfully!")
+        print("\n✅ Bot finished successfully!")
 
 if __name__ == "__main__":
     main()
-        
-    def setup_browser(self):
-        """Initialize the Chrome browser with optimal settings"""
-        self.logger.info("Setting up browser...")
-        
-        chrome_options = Options()
-        
-        # Browser settings
-        if config.BROWSER_HEADLESS:
-            chrome_options.add_argument("--headless")
-        
-        chrome_options.add_argument(f"--window-size={config.BROWSER_WINDOW_SIZE[0]},{config.BROWSER_WINDOW_SIZE[1]}")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        
-        # User agent to avoid detection
-        chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        
-        try:
-            # Try to use Brave browser first
-            brave_paths = [
-                "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-                "/usr/bin/brave-browser",
-                "/opt/brave.com/brave/brave-browser"
-            ]
-            
-            brave_found = False
-            for brave_path in brave_paths:
-                if os.path.exists(brave_path):
-                    chrome_options.binary_location = brave_path
-                    self.logger.info(f"Found Brave at: {brave_path}")
-                    brave_found = True
-                    break
-            
-            if brave_found:
-                try:
-                    # Try with system chromedriver first
-                    self.driver = webdriver.Chrome(options=chrome_options)
-                    self.logger.info("✅ Using Brave Browser!")
-                except:
-                    # Try with ChromeDriverManager
-                    service = Service(ChromeDriverManager().install())
-                    self.driver = webdriver.Chrome(service=service, options=chrome_options)
-                    self.logger.info("✅ Using Brave Browser with downloaded driver!")
-            else:
-                self.logger.info("Brave not found, trying Chrome...")
-                # Fallback to Chrome
-                try:
-                    self.driver = webdriver.Chrome(options=chrome_options)
-                except:
-                    service = Service(ChromeDriverManager().install())
-                    self.driver = webdriver.Chrome(service=service, options=chrome_options)
-                    
-        except Exception as e:
-            self.logger.error(f"Brave/Chrome failed: {e}")
-            self.logger.info("Trying Safari WebDriver as fallback...")
-            
-            # Ultimate fallback to Safari
-            try:
-                self.driver = webdriver.Safari()
-                self.logger.info("Using Safari WebDriver")
-            except Exception as e3:
-                self.logger.error(f"Safari also failed: {e3}")
-                raise Exception("No working browser found. Please install Brave/Chrome or enable Safari WebDriver.")
-        
-        # Execute script to remove webdriver property (if supported)
-        try:
-            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        except:
-            pass  # Some browsers don't support this
-        
-        self.wait = WebDriverWait(self.driver, config.BROWSER_TIMEOUT)
-        self.logger.info("Browser setup completed")
-        
-    def navigate_to_ogame(self):
-        """Navigate to OGame login page"""
-        self.logger.info("Navigating to OGame...")
-        self.driver.get(config.OGAME_LOGIN_URL)
-        time.sleep(3)
-        
-    def wait_for_manual_login(self):
-        """Wait for user to manually log in and navigate to game"""
-        self.logger.info("Please log in manually and navigate to the game overview page.")
-        self.logger.info("The bot will detect when you're on the overview page and start working.")
-        
-        # Wait until we're on the game overview page
-        while True:
-            try:
-                current_url = self.driver.current_url
-                if "component=overview" in current_url or "page=ingame" in current_url:
-                    self.logger.info("Game overview page detected! Starting bot...")
-                    break
-                else:
-                    time.sleep(2)
-            except Exception as e:
-                self.logger.error(f"Error checking URL: {e}")
-                time.sleep(2)
-                
-    def get_resources(self):
-        """Get current resource amounts"""
-        try:
-            resources = {}
-            
-            # Try to find resource elements
-            metal_elem = self.driver.find_element(By.ID, "resources_metal")
-            crystal_elem = self.driver.find_element(By.ID, "resources_crystal")
-            deuterium_elem = self.driver.find_element(By.ID, "resources_deuterium")
-            energy_elem = self.driver.find_element(By.ID, "resources_energy")
-            
-            resources['metal'] = metal_elem.text.replace('.', '').replace(',', '')
-            resources['crystal'] = crystal_elem.text.replace('.', '').replace(',', '')
-            resources['deuterium'] = deuterium_elem.text.replace('.', '').replace(',', '')
-            resources['energy'] = energy_elem.text.replace('.', '').replace(',', '')
-            
-            self.logger.info(f"Resources: Metal: {resources['metal']}, Crystal: {resources['crystal']}, Deuterium: {resources['deuterium']}, Energy: {resources['energy']}")
-            return resources
-            
-        except Exception as e:
-            self.logger.error(f"Error getting resources: {e}")
-            return None
-            
-    def check_buildings(self):
-        """Check what buildings can be built"""
-        try:
-            # Navigate to buildings page
-            buildings_link = self.driver.find_element(By.XPATH, "//a[contains(@href, 'buildings')]")
-            buildings_link.click()
-            time.sleep(2)
-            
-            self.logger.info("Checking available buildings...")
-            
-            # Find all buildable items
-            build_buttons = self.driver.find_elements(By.XPATH, "//a[contains(@class, 'build-it')]")
-            
-            if build_buttons:
-                self.logger.info(f"Found {len(build_buttons)} buildable items")
-                for i, button in enumerate(build_buttons[:3]):  # Only check first 3
-                    try:
-                        building_name = button.get_attribute("title") or f"Building {i+1}"
-                        self.logger.info(f"Can build: {building_name}")
-                    except:
-                        pass
-            else:
-                self.logger.info("No buildings can be built right now")
-                
-        except Exception as e:
-            self.logger.error(f"Error checking buildings: {e}")
-            
-    def run_bot_cycle(self):
-        """Run one cycle of bot operations"""
-        self.logger.info("=== Starting bot cycle ===")
-        
-        # Get current resources
-        resources = self.get_resources()
-        
-        # Check buildings if auto-build is enabled
-        if config.AUTO_BUILD:
-            self.check_buildings()
-            
-        # Add more bot operations here
-        
-        self.logger.info("=== Bot cycle completed ===")
-        
-    def start(self):
-        """Start the bot"""
-        try:
-            self.setup_browser()
-            self.navigate_to_ogame()
-            self.wait_for_manual_login()
-            
-            # Main bot loop
-            while True:
-                try:
-                    self.run_bot_cycle()
-                    self.logger.info(f"Sleeping for {config.CHECK_INTERVAL} seconds...")
-                    time.sleep(config.CHECK_INTERVAL)
-                    
-                except KeyboardInterrupt:
-                    self.logger.info("Bot stopped by user")
-                    break
-                except Exception as e:
-                    self.logger.error(f"Error in bot cycle: {e}")
-                    time.sleep(10)  # Wait before retrying
-                    
-        except Exception as e:
-            self.logger.error(f"Critical error: {e}")
-        finally:
-            self.cleanup()
-            
-    def cleanup(self):
-        """Clean up resources"""
-        if self.driver:
-            self.logger.info("Closing browser...")
-            self.driver.quit()
-
-if __name__ == "__main__":
-    bot = OGameBot()
-    bot.start()
